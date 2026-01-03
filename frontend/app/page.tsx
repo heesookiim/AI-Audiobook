@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import styles from './page.module.css'
 
 interface StoryResponse {
@@ -14,11 +14,48 @@ export default function Home() {
   const [story, setStory] = useState<string | null>(null)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioInstanceRef = useRef<HTMLAudioElement | null>(null)
+
+  // Set volume on HTML audio element when it's available
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = 1.0 // Set to maximum volume
+    }
+  }, [audioUrl])
+
+  // Cleanup audio when component unmounts or new audio is generated
+  useEffect(() => {
+    return () => {
+      // Cleanup previous audio instance
+      if (audioInstanceRef.current) {
+        audioInstanceRef.current.pause()
+        audioInstanceRef.current = null
+      }
+      // Cleanup previous blob URL
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl)
+      }
+    }
+  }, [audioUrl])
 
   const handleGenerate = async () => {
     if (!childName.trim()) {
       setError('Please enter a child\'s name')
       return
+    }
+
+    // Stop and cleanup previous audio
+    if (audioInstanceRef.current) {
+      audioInstanceRef.current.pause()
+      audioInstanceRef.current = null
+    }
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    // Cleanup previous blob URL
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl)
     }
 
     setLoading(true)
@@ -51,8 +88,10 @@ export default function Home() {
       const url = URL.createObjectURL(audioBlob)
       setAudioUrl(url)
 
-      // Auto-play audio
+      // Auto-play audio with explicit volume control
       const audio = new Audio(url)
+      audio.volume = 1.0 // Set to maximum volume (0.0 to 1.0)
+      audioInstanceRef.current = audio
       audio.play().catch((err) => {
         console.error('Auto-play failed:', err)
       })
@@ -98,7 +137,12 @@ export default function Home() {
 
         {audioUrl && (
           <div className={styles.audioPlayer}>
-            <audio controls src={audioUrl} className={styles.audio}>
+            <audio 
+              ref={audioRef}
+              controls 
+              src={audioUrl} 
+              className={styles.audio}
+            >
               Your browser does not support the audio element.
             </audio>
           </div>

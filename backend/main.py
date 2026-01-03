@@ -62,9 +62,8 @@ def generate_story(child_name: str) -> str:
         model = genai.GenerativeModel("gemini-3-flash-preview")
         
         # Configure generation to limit output length
-        # 600 words ≈ 800-900 tokens (roughly 1.3-1.5 tokens per word)
         generation_config = genai.types.GenerationConfig(
-            max_output_tokens=8000,  # Limit to help stay within 600 words
+            max_output_tokens=8000,  # Limit to help stay within 5 minutes of audio
             temperature=0.7,  # Balanced creativity
         )
         
@@ -74,18 +73,18 @@ def generate_story(child_name: str) -> str:
         )
         story_text = response.text.strip()
         
-        # Validate word count (not character count)
-        word_count = len(story_text.split())
+        # Validate character count
+        char_count = len(story_text)
         
-        if word_count < 450:
+        if char_count < 2000:
             raise HTTPException(
                 status_code=500, 
-                detail=f"Generated story is too short ({word_count} words, minimum 450)"
+                detail=f"Generated story is too short ({char_count} characters, minimum 2000)"
             )
-        if word_count > 700:  # Allow some buffer above 650
+        if char_count > 5000:
             raise HTTPException(
                 status_code=500, 
-                detail=f"Generated story is too long ({word_count} words, maximum 650)"
+                detail=f"Generated story is too long ({char_count} characters, maximum 5000)"
             )
         
         return story_text
@@ -102,13 +101,17 @@ def generate_audio(story_text: str) -> bytes:
     
     try:
         # Use a warm, calm voice for bedtime stories
-        # Rachel voice ID: 21m00Tcm4TlvDq8ikWAM
         # Using default voice or Rachel for calm bedtime narration
         audio = elevenlabs_client.text_to_speech.convert(
             text=story_text,
-            voice_id="21m00Tcm4TlvDq8ikWAM",  # Rachel - warm, calm voice
-            model_id="eleven_multilingual_v2",
-            output_format="mp3_44100_128",
+            voice_id="Tfv2PGiTliSQ4XSXrJmA",  # 
+            model_id="eleven_v3",
+            output_format="mp3_44100_128"
+            # speed=0.80,
+            # stability=0.87,
+            # similarity_boost=0.63,
+            # style=0.50,
+            # use_speaker_boost=True,
         )
         
         # Convert generator/stream to bytes
